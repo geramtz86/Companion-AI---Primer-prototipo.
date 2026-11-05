@@ -9,5 +9,102 @@
 <section class="card"><h2>¿Cómo te sientes hoy?</h2><p class="sub">Puedes elegir una opción. No hay respuestas incorrectas.</p><div class="moods"><button class="mood" data-mood="feliz"><b>😊</b>Feliz</button><button class="mood" data-mood="tranquilo"><b>😌</b>Tranquilo</button><button class="mood" data-mood="triste"><b>😔</b>Triste</button><button class="mood" data-mood="enojado"><b>😣</b>Enojado</button><button class="mood" data-mood="nervioso"><b>😟</b>Nervioso</button><button class="mood" data-mood="cansado"><b>😴</b>Cansado</button><button class="mood" data-mood="emocionado"><b>🤩</b>Emocionado</button><button class="mood" data-mood="no sé"><b>❔</b>No sé</button></div></section>
 <section class="card"><h2>Conversemos</h2><p class="sub">Escribe un mensaje para probar nuestra primera conversación.</p><div class="chat" id="chat" aria-live="polite"><div class="bubble bot">¡Hola! Soy tu compañero. ¿Qué te gustaría hacer hoy?</div></div><form class="entry" id="form"><input id="message" autocomplete="off" placeholder="Escribe aquí..." aria-label="Tu mensaje"><button class="send" type="submit">Enviar</button></form><button class="talk" id="speak" type="button">🔊 Escuchar mi saludo</button><p class="quiet">Demostración: las respuestas son locales y no usan IA real. No graba audio, no usa la cámara ni envía información.</p></section><footer>Companion AI · Diseño provisional 1.0<br>Prototipo de prueba, no es todavía una herramienta de supervisión infantil.</footer></main>
 <script>
-(()=>{'use strict';const chat=document.getElementById('chat'),status=document.getElementById('status');function add(text,who){const d=document.createElement('div');d.className='bubble '+who;d.textContent=text;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;}const answers=[[/hola|buenos días|hey/i,'¡Hola! Qué gusto verte. ¿Quieres platicar, jugar a adivinar o aprender algo?'],[/jugar|juego/i,'¡Sí! Juguemos a adivinar animales. Estoy pensando en uno que dice miau. ¿Cuál será?'],[/triste|llorar|mal/i,'Gracias por contármelo. No tienes que explicarlo todo ahora. ¿Quieres que te escuche o prefieres una pausa?'],[/enoja|frustra/i,'A veces las cosas se sienten difíciles. Podemos ir despacito. ¿Quieres respirar un momento o contarme qué pasó?'],[/miedo|nervios|ansio/i,'Gracias por decírmelo. ¿Qué te ayudaría a sentirte un poquito más cómodo?'],[/adiós|adios|bye|chao/i,'¡Hasta pronto! Gracias por compartir este ratito conmigo.']];document.getElementById('form').addEventListener('submit',e=>{e.preventDefault();const input=document.getElementById('message'),v=input.value.trim();if(!v)return;add(v,'kid');input.value='';const match=answers.find(([r])=>r.test(v));window.setTimeout(()=>add(match?match[1]:'Te escucho. ¿Quieres contarme un poquito más?','bot'),250);});document.querySelectorAll('.mood').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.mood').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');const m=b.dataset.mood;status.textContent='Gracias por decirme cómo te sientes.';const messages={feliz:'¡Qué bonito! ¿Qué fue lo mejor de tu día?',tranquilo:'Me alegra que estés tranquilo. Podemos disfrutar este momento.',triste:'Gracias por decírmelo. ¿Quieres hablar o prefieres un momento tranquilo?',enojado:'Está bien sentirse enojado. Podemos hacer una pausa y respirar despacio.',nervioso:'Gracias por contármelo. ¿Quieres que vayamos paso a paso?',cansado:'Podemos hacer algo tranquilo o descansar un momento.',emocionado:'¡Qué emoción! ¿Qué es lo que más esperas?','no sé':'No pasa nada. A veces cuesta encontrar la palabra. Podemos explorar opciones.'};add(messages[m],'bot');}));document.getElementById('speak').addEventListener('click',()=>{if(!('speechSynthesis'in window)){add('La lectura en voz alta no está disponible en este navegador.','bot');return;}const u=new SpeechSynthesisUtterance('Hola. Soy tu compañero. Me alegra estar contigo.');u.lang='es-MX';u.rate=.88;u.pitch=1.08;speechSynthesis.cancel();speechSynthesis.speak(u);});})();
-</script></body></html>
+(()=>{
+'use strict';
+
+const chat = document.getElementById('chat');
+const status = document.getElementById('status');
+const form = document.getElementById('form');
+const input = document.getElementById('message');
+const send = form.querySelector('.send');
+
+function add(text, who) {
+  const d = document.createElement('div');
+  d.className = 'bubble ' + who;
+  d.textContent = text;
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const message = input.value.trim();
+  if (!message) return;
+
+  add(message, 'kid');
+  input.value = '';
+  send.disabled = true;
+  send.textContent = '...';
+
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ message })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Error de conexión');
+    }
+
+    add(data.reply || 'No recibí una respuesta. ¿Intentamos otra vez?', 'bot');
+
+  } catch (error) {
+    add('No pude conectarme en este momento. Inténtalo de nuevo.', 'bot');
+  } finally {
+    send.disabled = false;
+    send.textContent = 'Enviar';
+  }
+});
+
+document.querySelectorAll('.mood').forEach(button => {
+  button.addEventListener('click', () => {
+    document.querySelectorAll('.mood').forEach(x => {
+      x.classList.remove('selected');
+    });
+
+    button.classList.add('selected');
+
+    const messages = {
+      feliz: '¡Qué bonito! ¿Qué fue lo mejor de tu día?',
+      tranquilo: 'Me alegra que estés tranquilo. Podemos disfrutar este momento.',
+      triste: 'Gracias por decírmelo. ¿Quieres hablar o prefieres un momento tranquilo?',
+      enojado: 'Está bien sentirse enojado. Podemos hacer una pausa y respirar despacio.',
+      nervioso: 'Gracias por contármelo. ¿Quieres que vayamos paso a paso?',
+      cansado: 'Podemos hacer algo tranquilo o descansar un momento.',
+      emocionado: '¡Qué emoción! ¿Qué es lo que más esperas?',
+      'no sé': 'No pasa nada. A veces cuesta encontrar la palabra. Podemos explorar opciones.'
+    };
+
+    status.textContent = 'Gracias por decirme cómo te sientes.';
+    add(messages[button.dataset.mood], 'bot');
+  });
+});
+
+document.getElementById('speak').addEventListener('click', () => {
+  if (!('speechSynthesis' in window)) {
+    add('La lectura en voz alta no está disponible en este navegador.', 'bot');
+    return;
+  }
+
+  const u = new SpeechSynthesisUtterance(
+    'Hola. Soy tu compañero. Me alegra estar contigo.'
+  );
+
+  u.lang = 'es-MX';
+  u.rate = 0.88;
+  u.pitch = 1.08;
+
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+});
+
+})();
+</script>
+</body>
+</html>
