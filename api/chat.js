@@ -14,10 +14,13 @@ export default async function handler(req, res) {
       });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
       console.error("OPENAI_API_KEY no está configurada.");
+
       return res.status(500).json({
-        error: "El servidor no tiene configurada la conexión con la IA."
+        error: "Falta configurar OPENAI_API_KEY en Vercel."
       });
     }
 
@@ -27,7 +30,7 @@ export default async function handler(req, res) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
+          "Authorization": `Bearer ${apiKey}`
         },
         body: JSON.stringify({
           model: "gpt-6-luna",
@@ -40,26 +43,39 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("Error de OpenAI:", {
-        status: response.status,
-        code: data.error?.code || "sin código",
-        type: data.error?.type || "sin tipo"
-      });
+      console.error("Error de OpenAI:", response.status, data);
 
-      return res.status(response.status).json({
-        error: "No se pudo obtener una respuesta de la IA."
+      return res.status(502).json({
+        error: "OpenAI rechazó la solicitud.",
+        details: data.error?.message || "Error desconocido."
+      });
+    }
+
+    const reply = (data.output || [])
+      .filter(item => item.type === "message")
+      .flatMap(item => item.content || [])
+      .filter(item => item.type === "output_text")
+      .map(item => item.text)
+      .join("\n")
+      .trim();
+
+    if (!reply) {
+      console.error("OpenAI no devolvió texto:", data);
+
+      return res.status(502).json({
+        error: "OpenAI respondió, pero no encontramos texto."
       });
     }
 
     return res.status(200).json({
-      reply: data.output_text
+      reply: reply
     });
 
   } catch (error) {
-    console.error("Error interno en Companion AI:", error.message);
+    console.error("Error interno:", error.message);
 
     return res.status(500).json({
-      error: "Ocurrió un problema al conectar con Companion AI."
+      error: "Problema interno en Companion AI."
     });
   }
 }
