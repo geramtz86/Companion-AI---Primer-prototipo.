@@ -1,4 +1,17 @@
+
 export default async function handler(req, res) {
+
+  // Permisos CORS para permitir la conexión desde CodePen
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  // Responder a la comprobación previa del navegador
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  // Aceptar solamente solicitudes POST
   if (req.method !== "POST") {
     return res.status(405).json({
       error: "Método no permitido"
