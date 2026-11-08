@@ -1,5 +1,6 @@
 export default async function handler(req, res) {
 
+
   // Permisos CORS para permitir la conexión desde CodePen
 
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -32,7 +33,9 @@ export default async function handler(req, res) {
 
 
   try {
-    const { message, history } = req.body || {};
+
+    const { message } = req.body || {};
+
 
     if (!message || typeof message !== "string") {
 
@@ -44,26 +47,9 @@ export default async function handler(req, res) {
 
     }
 
-    // --- MEMORIA: lo nuevo ---
-    // El front ya manda history con lo que se habló antes.
-    // Si viene, lo usamos como input. Si no viene, seguimos
-    // como antes, solo con el mensaje de ahorita.
-    // Ojo: el front ya incluyó el mensaje actual en history,
-    // así que NO lo agregamos otra vez aquí.
-    let input = message;
-
-    if (Array.isArray(history) && history.length > 0) {
-      const historialLimpio = history
-        .filter((m) => m && typeof m.content === "string" && (m.role === "user" || m.role === "assistant"))
-        .slice(-20)
-        .map((m) => ({ role: m.role, content: m.content }));
-
-      if (historialLimpio.length > 0) {
-        input = historialLimpio;
-      }
-    }
 
     const apiKey = process.env.OPENAI_API_KEY;
+
 
     if (!apiKey) {
 
@@ -100,7 +86,7 @@ export default async function handler(req, res) {
 
           instructions: "Eres Companion AI, un compañero amigable, tranquilo y paciente. Responde en español con calidez, sencillez y respeto. Nunca presiones ni regañes.",
 
-          input: input
+          input: message
 
         })
 
